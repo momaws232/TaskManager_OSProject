@@ -1,0 +1,24 @@
+# Python dependencies for System Monitoring Project
+# Arab Academy for Science, Technology & Maritime Transport - OS Project 12
+
+# Web framework
+Flask==3.0.0
+flask-cors==4.0.0
+
+# Data processing
+pandas==2.1.4
+numpy==1.26.2
+
+# Visualization
+plotly==5.18.0
+matplotlib==3.8.2
+
+# System monitoring (optional Python tools)
+psutil==5.9.6
+
+# Data storage (optional)
+influxdb-client==1.38.0
+
+# Utilities
+python-dotenv==1.0.0
+pyyaml==6.0.1

@@ -1,0 +1,204 @@
+version: '3.8'
+
+################################################################################
+# Docker Compose Configuration for System Monitoring
+# Arab Academy for Science, Technology & Maritime Transport - OS Project 12
+################################################################################
+
+services:
+  # Data Collection Service
+  monitor-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: system-monitor-collector
+    hostname: monitor-collector
+    restart: unless-stopped
+    
+    # Run continuous monitoring
+    command: ./monitor.sh continuous
+    
+    # Mount volumes for persistent data
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+      - ./monitor.sh:/app/monitor.sh
+      - ./dashboard.sh:/app/dashboard.sh
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    # Network configuration
+    networks:
+      - monitor-network
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/logs/monitor_*.log"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    labels:
+      - "com.aastmt.project=os-project-12"
+      - "com.aastmt.service=data-collector"
+
+  # Reporting Service
+  monitor-reporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: system-monitor-reporter
+    hostname: monitor-reporter
+    restart: "no"
+    
+    # Generate report on demand
+    command: ./monitor.sh report
+    
+    # Mount volumes for accessing data
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+      - ./monitor.sh:/app/monitor.sh
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    
+    # Network configuration
+    networks:
+      - monitor-network
+    
+    depends_on:
+      - monitor-collector
+    
+    labels:
+      - "com.aastmt.project=os-project-12"
+      - "com.aastmt.service=reporter"
+    
+    # Run only when explicitly started
+    profiles:
+      - reporting
+
+  # Interactive Dashboard Service
+  monitor-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: system-monitor-dashboard
+    hostname: monitor-dashboard
+    stdin_open: true
+    tty: true
+    
+    # Launch interactive dashboard
+    command: ./dashboard.sh
+    
+    # Mount volumes
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+      - ./monitor.sh:/app/monitor.sh
+      - ./dashboard.sh:/app/dashboard.sh
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    
+    # Network configuration
+    networks:
+      - monitor-network
+    
+    depends_on:
+      - monitor-collector
+    
+    labels:
+      - "com.aastmt.project=os-project-12"
+      - "com.aastmt.service=dashboard"
+    
+    # Run only when explicitly started
+    profiles:
+      - dashboard
+
+  # Web Visualization Service (Optional - Python-based)
+  monitor-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: system-monitor-web
+    hostname: monitor-web
+    restart: unless-stopped
+    
+    # Expose web interface
+    ports:
+      - "8080:8080"
+    
+    # Mount volumes
+    volumes:
+      - ./logs:/app/logs
+      - ./reports:/app/reports
+      - ./data:/app/data
+      - ./web:/app/web
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Network configuration
+    networks:
+      - monitor-network
+    
+    depends_on:
+      - monitor-collector
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    
+    labels:
+      - "com.aastmt.project=os-project-12"
+      - "com.aastmt.service=web-interface"
+    
+    # Run only when explicitly started
+    profiles:
+      - web
+
+# Network configuration
+networks:
+  monitor-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volumes for persistent data
+volumes:
+  monitor-logs:
+    driver: local
+  monitor-reports:
+    driver: local
+  monitor-data:
+    driver: local
